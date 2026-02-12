@@ -7,9 +7,9 @@ import time
 from streamlit_gsheets import GSheetsConnection
 
 # --- 1. CONFIGURAÇÃO ---
-st.set_page_config(page_title="Distrito Pro 2026", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="Relatorio Deric 2026", layout="wide", page_icon="🛡️")
 
-URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1y3vAXagtbdzaTHGEkPOuWI3TvzcfFYhfO1JUt0GrhG8/edit?usp=sharing"
+URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1Bb9wK8dwRYjOJ5leTKxT9VQ0Ib7z-aD5MXCHJX0hNXs/edit?usp=sharing"
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # --- 2. FUNÇÕES DE DADOS ---
@@ -335,4 +335,5 @@ with tab_ob:
                     ln[datetime.strptime(d, '%Y-%m-%d').strftime('%d/%m')] = f"{p_ce} | {p_cu}"
                 else: ln[datetime.strptime(d, '%Y-%m-%d').strftime('%d/%m')] = "❌ | ❌"
             cham_d.append(ln)
+
         st.dataframe(pd.DataFrame(cham_d), use_container_width=True, hide_index=True)
