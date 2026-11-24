@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import date, timedelta, datetime
 import time
+from urllib.parse import quote
 from streamlit_gsheets import GSheetsConnection
 
 # =====================================================================
@@ -222,6 +223,29 @@ button[data-testid="stBaseButton-secondary"] p {{ color:white !important; }}
 [data-testid="stSelectbox"] [role="group"], [data-testid="stMultiSelect"] [role="group"] {{ background:#0F172A !important; border-color:#1F2A44 !important; }}
 [data-testid="stSelectbox"] input, [data-testid="stSelectbox"] [role="group"] * {{ color:white !important; }}
 [data-testid="stButtonGroup"], [data-testid="stButtonGroup"] [role="toolbar"] {{ width:100% !important; max-width:none !important; flex:1 1 auto !important; }}
+
+/* ===== Aba Frequência ===== */
+.cel-card {{ background:#131C31; border:1px solid #1F2A44; border-radius:16px; padding:14px 16px; margin-bottom:12px; border-top:3px solid var(--c); }}
+.cel-top {{ display:flex; align-items:center; gap:10px; }}
+.cel-nome {{ font-weight:700; color:white; font-size:1rem; line-height:1.15; }}
+.cel-nome small {{ display:block; color:#94A3B8; font-weight:500; font-size:.72rem; }}
+.cel-meio {{ display:flex; align-items:flex-end; justify-content:space-between; margin:10px 0 6px 0; }}
+.cel-big {{ font-size:2rem; font-weight:800; line-height:1; }}
+.cel-lbl {{ font-size:.72rem; color:#94A3B8; margin-top:3px; }}
+.cel-rodape {{ display:flex; gap:12px; flex-wrap:wrap; font-size:.8rem; color:#94A3B8; border-top:1px solid #1F2A44; padding-top:8px; }}
+.cel-rodape b {{ color:white; }}
+.cel-vazio {{ color:#64748B; font-size:.85rem; padding:16px 0 6px 0; }}
+.dest-tit {{ font-weight:800; font-size:1rem; }}
+.dest-sub {{ color:#94A3B8; font-size:.75rem; margin-bottom:8px; }}
+.dest-linha {{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 0; border-bottom:1px solid #1F2A44; color:white; font-size:.92rem; }}
+.dest-cel {{ font-size:.7rem; background:#1E293B; color:#CBD5E1; padding:2px 8px; border-radius:99px; }}
+.dest-num {{ margin-left:auto; font-weight:700; font-size:.82rem; }}
+
+/* Botão WhatsApp */
+[data-testid="stLinkButton"] a {{ background:#25D366 !important; color:#06260F !important; border:none !important;
+    min-height:54px; border-radius:12px !important; font-weight:800 !important; justify-content:center !important; text-align:center !important; }}
+[data-testid="stLinkButton"] a p {{ color:#06260F !important; font-size:1.05rem !important; font-weight:800 !important; }}
+.st-key-salvo_ok .ok {{ margin-bottom:10px; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -282,10 +306,10 @@ SENHA_CORRETA = "Videira@1020"
 
 # Lógica das Abas
 if acesso_admin == SENHA_CORRETA:
-    tab_dash, tab_lanc, tab_gestao, tab_ob = st.tabs(["📊 Dashboard", "📝 Relatório do Líder", "⚙️ Gestão de Células", "📋 Relatório OB"])
+    tab_dash, tab_freq, tab_lanc, tab_gestao, tab_ob = st.tabs(["📊 Dashboard", "📈 Frequência", "📝 Relatório do Líder", "⚙️ Gestão de Células", "📋 Relatório OB"])
 else:
     tab_lanc = st.tabs(["📝 Relatório do Líder"])[0]
-    tab_dash, tab_gestao, tab_ob = None, None, None
+    tab_dash, tab_freq, tab_gestao, tab_ob = None, None, None, None
     if acesso_admin != "":
         st.sidebar.error("Senha incorreta!")
 
@@ -418,9 +442,208 @@ if tab_dash:
                                     st.markdown(f'<div class="alerta">{it}</div>', unsafe_allow_html=True)
 
 # =====================================================================
+# ABA FREQUÊNCIA (só leitura — não grava nada na planilha)
+# =====================================================================
+def sparkline_svg(valores, cor, w=120, h=34):
+    vals = [v for v in valores if v is not None]
+    if len(vals) < 2:
+        return ""
+    n = len(vals)
+    pts = " ".join(f"{i*(w-6)/(n-1)+3:.1f},{h-3-(v/100)*(h-6):.1f}" for i, v in enumerate(vals))
+    ux, uy = pts.split()[-1].split(",")
+    return (f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}">'
+            f'<polyline points="{pts}" fill="none" stroke="{cor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'
+            f'<circle cx="{ux}" cy="{uy}" r="3.5" fill="{cor}"/></svg>')
+
+
+def pct(serie):
+    return float(serie.mean() * 100) if len(serie) else None
+
+
+def fmt_pct(v):
+    return "—" if v is None else f"{v:.0f}%"
+
+
+def cor_pct(v):
+    if v is None: return COR_SUAVE
+    return COR_VIS if v >= 75 else ("#FBBF24" if v >= 50 else COR_ALERTA)
+
+
+if tab_freq:
+    with tab_freq:
+        db = st.session_state.db
+        dbv = st.session_state.db_visitantes
+        cad = st.session_state.membros_cadastrados
+
+        if db.empty:
+            st.info("Ainda não há lançamentos na planilha.")
+        else:
+            with st.container(border=True):
+                fc1, fc2 = st.columns([1, 3])
+                mes_f = fc1.selectbox("📅 Mês", MESES_NOMES, index=datetime.now().month-1, key="freq_mes")
+                cels_todas = sorted(cad.keys())
+                cels_f = fc2.multiselect("🏠 Células", cels_todas, default=cels_todas, key="freq_cels")
+            n_mes = MESES_MAP[mes_f]
+            dm = db[(db['MesNum'] == n_mes) & (db['Líder'].isin(cels_f))].copy()
+            dvm = dbv[(dbv['MesNum'] == n_mes) & (dbv['Líder'].isin(cels_f))]
+            dm['Grupo'] = dm['Tipo'].map(lambda t: "FA" if t == "FA" else "Membros")
+
+            if dm.empty:
+                st.info(f"Nenhum lançamento em {mes_f} para as células escolhidas.")
+            else:
+                # ---------- Resumo geral ----------
+                k1, k2, k3, k4 = st.columns(4)
+                p_mc = pct(dm[dm['Grupo'] == "Membros"]['Célula']); p_fc = pct(dm[dm['Grupo'] == "FA"]['Célula'])
+                p_cu = pct(dm['Culto'])
+                kpi(k1, "Membros na célula", fmt_pct(p_mc), COR_PRIMARIA, "média do mês", p_mc)
+                kpi(k2, "FA na célula", fmt_pct(p_fc), COR_FA, "média do mês", p_fc)
+                kpi(k3, "Presença no culto", fmt_pct(p_cu), "#F59E0B", "Membros + FA", p_cu)
+                kpi(k4, "Visitantes", int(dvm['Vis_Celula'].sum()), COR_VIS, f"célula · {int(dvm['Vis_Culto'].sum())} no culto")
+
+                # ---------- 1. Cards por célula ----------
+                secao("🏠 Como está cada célula", mes_f)
+                cards = []
+                for cel in cels_f:
+                    d = dm[dm['Líder'] == cel]
+                    if d.empty:
+                        cards.append((cel, None, None, 0, [], 0)); continue
+                    semanal = [pct(d[d['Data_Ref'] == s]['Célula']) for s in sorted(d['Data_Ref'].unique())]
+                    cards.append((cel, pct(d['Célula']), pct(d['Culto']),
+                                  int(dvm[dvm['Líder'] == cel]['Vis_Celula'].sum()), semanal, d['Data_Ref'].nunique()))
+                cards.sort(key=lambda c: -1 if c[1] is None else c[1], reverse=True)
+                cols_c = st.columns(3)
+                for i, (cel, pc, pu, vis, sem, nsem) in enumerate(cards):
+                    cor = cor_pct(pc)
+                    tend = ""
+                    if len(sem) >= 2:
+                        dif = sem[-1] - sem[0]
+                        tend = f'<span style="color:{COR_VIS if dif >= 0 else COR_ALERTA};font-weight:700">{"▲" if dif >= 0 else "▼"} {abs(dif):.0f} pts</span>'
+                    corpo = (f'<div class="cel-card" style="--c:{cor}">'
+                             f'<div class="cel-top"><div class="avatar" style="background:#F59E0B;width:34px;height:34px;font-size:.8rem">{iniciais(cel)}</div>'
+                             f'<div class="cel-nome">{cel}<small>{nsem} sábado(s) lançado(s)</small></div></div>')
+                    if pc is None:
+                        corpo += f'<div class="cel-vazio">Sem lançamentos em {mes_f}</div></div>'
+                    else:
+                        corpo += (f'<div class="cel-meio"><div><div class="cel-big" style="color:{cor}">{fmt_pct(pc)}</div>'
+                                  f'<div class="cel-lbl">presença na célula</div></div>{sparkline_svg(sem, cor)}</div>'
+                                  f'<div class="cel-rodape"><span>⛪ Culto <b>{fmt_pct(pu)}</b></span>'
+                                  f'<span>✨ Visit. <b>{vis}</b></span>{tend}</div></div>')
+                    cols_c[i % 3].markdown(corpo, unsafe_allow_html=True)
+
+                # ---------- 2. Ranking ----------
+                secao("🏆 Ranking das células", "% de presença no mês")
+                modo_rk = st.radio("Ver presença em:", ["🏠 Célula", "⛪ Culto"], horizontal=True, key="freq_rk_modo")
+                col_rk = "Célula" if "Célula" in modo_rk else "Culto"
+                rk = (dm.groupby(['Líder', 'Grupo'])[col_rk].mean().mul(100).round(0).reset_index())
+                if not rk.empty:
+                    ordem = (rk[rk['Grupo'] == "Membros"].sort_values(col_rk)['Líder'].tolist())
+                    ordem += [c for c in rk['Líder'].unique() if c not in ordem]
+                    fig_rk = px.bar(rk, y='Líder', x=col_rk, color='Grupo', orientation='h', barmode='group', text=col_rk,
+                                    color_discrete_map={"Membros": COR_PRIMARIA, "FA": COR_FA},
+                                    category_orders={'Líder': ordem[::-1], 'Grupo': ["FA", "Membros"]})
+                    fig_rk.update_traces(texttemplate="%{text:.0f}%", textposition="outside", marker_line_width=0, cliponaxis=False)
+                    estilo_grafico(fig_rk, max(260, 70 * len(ordem) + 80))
+                    fig_rk.update_layout(hovermode="closest", legend_title_text="", legend_traceorder="reversed", bargap=0.3)
+                    fig_rk.update_xaxes(range=[0, 115], ticksuffix="%", title=None, showgrid=True, gridcolor="#1E293B")
+                    fig_rk.update_yaxes(title=None)
+                    with st.container(border=True):
+                        st.plotly_chart(fig_rk, use_container_width=True, key="freq_rk")
+
+                # ---------- 4. Mapa de calor por pessoa ----------
+                secao("🗓️ Presença de cada pessoa")
+                st.caption("🟩 célula e culto · 🟨 só um dos dois · 🟥 faltou · passe o dedo/mouse no quadrado para ver o detalhe")
+                cel_hm = st.selectbox("Célula:", cels_f, key="freq_hm_cel")
+                dh = dm[dm['Líder'] == cel_hm]
+                if dh.empty:
+                    st.info(f"A célula de {cel_hm} não tem lançamentos em {mes_f}.")
+                else:
+                    pessoas_hm = [(cel_hm, "Liderança")] + list(cad.get(cel_hm, {}).items())
+                    datas_hm = sorted(dh['Data_Ref'].unique())
+                    rotulos_x = [datetime.strptime(d, '%Y-%m-%d').strftime('%d/%m') for d in datas_hm]
+                    z, txt, hov, rot_y = [], [], [], []
+                    simb = {2: "🏠⛪", 1: "", 0: "✕"}
+                    for nome, tipo in pessoas_hm:
+                        lz, lt, lh = [], [], []
+                        for d in datas_hm:
+                            r = dh[(dh['Data_Ref'] == d) & (dh['Nome'] == nome)]
+                            if r.empty:
+                                lz.append(None); lt.append(""); lh.append("sem lançamento")
+                            else:
+                                ce, cu = int(r['Célula'].sum() > 0), int(r['Culto'].sum() > 0)
+                                lz.append(ce + cu)
+                                lt.append("🏠⛪" if ce and cu else ("🏠" if ce else ("⛪" if cu else "✕")))
+                                lh.append(f"Célula {'✅' if ce else '❌'} · Culto {'✅' if cu else '❌'}")
+                        z.append(lz); txt.append(lt); hov.append(lh)
+                        rot_y.append(f"{nome} · {tipo}")
+                    escala = [[0, "#7F1D1D"], [0.33, "#7F1D1D"], [0.34, "#A16207"], [0.66, "#A16207"], [0.67, "#047857"], [1, "#047857"]]
+                    fig_hm = go.Figure(go.Heatmap(z=z, x=rotulos_x, y=rot_y, text=txt, texttemplate="%{text}",
+                                                  customdata=hov, hovertemplate="<b>%{y}</b><br>%{x}: %{customdata}<extra></extra>",
+                                                  colorscale=escala, zmin=0, zmax=2, showscale=False, xgap=4, ygap=4, textfont=dict(size=16)))
+                    estilo_grafico(fig_hm, max(220, 46 * len(rot_y) + 70))
+                    fig_hm.update_layout(hovermode="closest", margin=dict(l=10, r=10, t=20, b=10))
+                    fig_hm.update_yaxes(autorange="reversed", showgrid=False)
+                    fig_hm.update_xaxes(side="top")
+                    with st.container(border=True):
+                        st.plotly_chart(fig_hm, use_container_width=True, key="freq_hm")
+
+                # ---------- 5. Destaques ----------
+                secao("⭐ Destaques do mês")
+                pessoas_mes = []
+                for cel in cels_f:
+                    for nome, tipo in cad.get(cel, {}).items():
+                        r = dm[(dm['Líder'] == cel) & (dm['Nome'] == nome)]
+                        if not r.empty:
+                            pessoas_mes.append((nome, cel, tipo, int(r['Célula'].sum()), int(r['Culto'].sum()), len(r)))
+                prontos = sorted([p for p in pessoas_mes if p[2] == "FA" and p[5] >= 2 and p[3] / p[5] >= 0.75], key=lambda p: -p[3] / p[5])
+                atencao = sorted([p for p in pessoas_mes if p[2] == "Membro" and p[3] / p[5] < 0.5], key=lambda p: p[3] / p[5])
+                d1c, d2c = st.columns(2)
+                with d1c:
+                    with st.container(border=True):
+                        st.markdown(f'<div class="dest-tit" style="color:{COR_FA}">🌱 FA prontos para virar Membro</div>'
+                                    f'<div class="dest-sub">75% ou mais de presença na célula</div>', unsafe_allow_html=True)
+                        if not prontos: st.caption("Nenhum FA nessa faixa ainda.")
+                        for nome, cel, _, pc, pu, n in prontos:
+                            st.markdown(f'<div class="dest-linha"><b>{nome}</b><span class="dest-cel">{cel}</span>'
+                                        f'<span class="dest-num" style="color:{COR_VIS}">🏠 {pc}/{n} · ⛪ {pu}/{n}</span></div>', unsafe_allow_html=True)
+                with d2c:
+                    with st.container(border=True):
+                        st.markdown(f'<div class="dest-tit" style="color:{COR_ALERTA}">📞 Membros que precisam de atenção</div>'
+                                    f'<div class="dest-sub">menos de 50% de presença na célula</div>', unsafe_allow_html=True)
+                        if not atencao: st.caption("Nenhum membro abaixo de 50%. 🎉")
+                        for nome, cel, _, pc, pu, n in atencao:
+                            st.markdown(f'<div class="dest-linha"><b>{nome}</b><span class="dest-cel">{cel}</span>'
+                                        f'<span class="dest-num" style="color:{COR_ALERTA}">🏠 {pc}/{n} · ⛪ {pu}/{n}</span></div>', unsafe_allow_html=True)
+
+            # ---------- 3. Evolução do ano ----------
+            secao("📈 Evolução no ano", "% de presença mês a mês")
+            da = db[db['Líder'].isin(cels_f)].copy()
+            if not da.empty:
+                da['Grupo'] = da['Tipo'].map(lambda t: "FA" if t == "FA" else "Membros")
+                ev = da.groupby(['MesNum', 'Grupo'])[['Célula', 'Culto']].mean().mul(100).round(0).reset_index()
+                fig_ev = go.Figure()
+                for grupo, cor in [("Membros", COR_PRIMARIA), ("FA", COR_FA)]:
+                    e = ev[ev['Grupo'] == grupo].sort_values('MesNum')
+                    x = [MESES_NOMES[int(m)-1][:3] for m in e['MesNum']]
+                    fig_ev.add_trace(go.Scatter(x=x, y=e['Célula'], name=f"{grupo} · Célula", mode="lines+markers+text",
+                                                text=e['Célula'].map(lambda v: f"{v:.0f}%"), textposition="top center",
+                                                line=dict(color=cor, width=3, shape="spline"), marker=dict(size=9)))
+                    fig_ev.add_trace(go.Scatter(x=x, y=e['Culto'], name=f"{grupo} · Culto", mode="lines+markers",
+                                                line=dict(color=cor, width=2, dash="dot", shape="spline"), marker=dict(size=6), opacity=.75))
+                estilo_grafico(fig_ev, 360)
+                fig_ev.update_yaxes(range=[0, 110], ticksuffix="%")
+                fig_ev.update_xaxes(categoryorder="array", categoryarray=[m[:3] for m in MESES_NOMES])
+                with st.container(border=True):
+                    st.plotly_chart(fig_ev, use_container_width=True, key="freq_ev")
+
+# =====================================================================
 # ABA LANÇAR  (pensada para o celular)
 # =====================================================================
 OPC_CEL, OPC_CUL = "🏠 Célula", "⛪ Culto"
+# ---------------- NÚMEROS DO WHATSAPP ----------------
+# Só números, com 55 + DDD (ex.: "5511999999999").
+# Se ficar vazio (""), o WhatsApp abre e a pessoa escolhe o contato.
+NUMERO_DISCIPULADOR = ""   # recebe o relatório semanal de cada líder
+NUMERO_OBREIRO = ""        # recebe o fechamento do mês (aba Relatório OB)
 
 with tab_lanc:
     if not st.session_state.membros_cadastrados:
@@ -445,9 +668,10 @@ with tab_lanc:
             for n, _ in pessoas:
                 st.session_state[chave_seg(n)] = list(opcoes)
 
-        # ---- Passo 2: chamada (só esta parte recarrega ao tocar = rápido no celular) ----
+        # Passos 2 a 4 ficam num "fragmento": ao tocar, só esta parte recarrega (rápido no celular)
         @st.fragment
-        def chamada():
+        def preencher():
+            # ---- Passo 2: chamada ----
             st.markdown('<div class="passo"><span>2</span> Marque quem esteve presente</div>', unsafe_allow_html=True)
             placar = st.empty()
 
@@ -485,46 +709,74 @@ with tab_lanc:
                 f'<div><b>{tot_cul}</b>/{total}<small>⛪ Culto</small></div>'
                 f'</div>', unsafe_allow_html=True)
 
-        chamada()
+            # ---- Passo 3: visitantes ----
+            st.markdown('<div class="passo"><span>3</span> Visitantes</div>', unsafe_allow_html=True)
+            with st.container(border=True):
+                col_v1, col_v2 = st.columns(2)
+                vce = col_v1.number_input("🏠 Na Célula", 0, key=f"vce_{l_l}_{d_l}")
+                vcu = col_v2.number_input("⛪ No Culto", 0, key=f"vcu_{l_l}_{d_l}")
 
-        # ---- Passo 3: visitantes ----
-        st.markdown('<div class="passo"><span>3</span> Visitantes</div>', unsafe_allow_html=True)
-        with st.container(border=True):
-            col_v1, col_v2 = st.columns(2)
-            vce = col_v1.number_input("🏠 Na Célula", 0)
-            vcu = col_v2.number_input("⛪ No Culto", 0)
+            # ---- Passo 4: salvar e enviar ----
+            st.markdown('<div class="passo"><span>4</span> Salve e envie ao Discipulador</div>', unsafe_allow_html=True)
+            st.caption(f"Célula de **{l_l}** · sábado **{d_l.strftime('%d/%m/%Y')}**")
 
-        # ---- Passo 4: salvar ----
-        st.markdown('<div class="passo"><span>4</span> Confira e salve</div>', unsafe_allow_html=True)
-        st.caption(f"Célula de **{l_l}** · sábado **{d_l.strftime('%d/%m/%Y')}**")
-        if st.button("💾 SALVAR LANÇAMENTO", use_container_width=True, type="primary"):
-            novos = []
-            novos.append({
-                "Data": d_l.strftime('%d/%m/%Y'), "Líder": l_l, "Nome": l_l, "Tipo": "Liderança",
-                "Célula": 1 if st.session_state.presencas_bt[f"bt_cel_{l_l}"] else 0,
-                "Culto": 1 if st.session_state.presencas_bt[f"bt_cul_{l_l}"] else 0
-            })
-            for n, t in st.session_state.membros_cadastrados.get(l_l, {}).items():
+            # Mensagem do WhatsApp montada com o que está marcado na tela
+            linhas = [f"*📋 Relatório de Célula*",
+                      f"🏠 Célula: *{l_l}*",
+                      f"🗓️ Sábado: *{d_l.strftime('%d/%m/%Y')}*", ""]
+            for nome, tipo in pessoas:
+                ce = "✅" if st.session_state.presencas_bt[f"bt_cel_{nome}"] else "❌"
+                cu = "✅" if st.session_state.presencas_bt[f"bt_cul_{nome}"] else "❌"
+                linhas.append(f"👤 {nome} ({tipo}) — Célula {ce} | Culto {cu}")
+            linhas += ["",
+                       f"*Presentes na célula:* {tot_cel}/{total}",
+                       f"*Presentes no culto:* {tot_cul}/{total}",
+                       f"✨ *Visitantes:* célula {int(vce)} | culto {int(vcu)}"]
+            link_wpp = f"https://wa.me/{NUMERO_DISCIPULADOR}?text={quote(chr(10).join(linhas))}"
+
+            if st.button("💾 SALVAR LANÇAMENTO", use_container_width=True, type="primary"):
+                novos = []
                 novos.append({
-                    "Data": d_l.strftime('%d/%m/%Y'), "Líder": l_l, "Nome": n, "Tipo": t,
-                    "Célula": 1 if st.session_state.presencas_bt[f"bt_cel_{n}"] else 0,
-                    "Culto": 1 if st.session_state.presencas_bt[f"bt_cul_{n}"] else 0
+                    "Data": d_l.strftime('%d/%m/%Y'), "Líder": l_l, "Nome": l_l, "Tipo": "Liderança",
+                    "Célula": 1 if st.session_state.presencas_bt[f"bt_cel_{l_l}"] else 0,
+                    "Culto": 1 if st.session_state.presencas_bt[f"bt_cul_{l_l}"] else 0
                 })
+                for n, t in st.session_state.membros_cadastrados.get(l_l, {}).items():
+                    novos.append({
+                        "Data": d_l.strftime('%d/%m/%Y'), "Líder": l_l, "Nome": n, "Tipo": t,
+                        "Célula": 1 if st.session_state.presencas_bt[f"bt_cel_{n}"] else 0,
+                        "Culto": 1 if st.session_state.presencas_bt[f"bt_cul_{n}"] else 0
+                    })
 
-            dt_ref = d_l.strftime('%d/%m/%Y')
-            dfp = pd.concat([st.session_state.db[~((st.session_state.db['Data'] == dt_ref) & (st.session_state.db['Líder'] == l_l))], pd.DataFrame(novos)])
-            dfv = pd.concat([st.session_state.db_visitantes[~((st.session_state.db_visitantes['Data'] == dt_ref) & (st.session_state.db_visitantes['Líder'] == l_l))], pd.DataFrame([{"Data": dt_ref, "Líder": l_l, "Vis_Celula": vce, "Vis_Culto": vcu}])])
+                dt_ref = d_l.strftime('%d/%m/%Y')
+                dfp = pd.concat([st.session_state.db[~((st.session_state.db['Data'] == dt_ref) & (st.session_state.db['Líder'] == l_l))], pd.DataFrame(novos)])
+                dfv = pd.concat([st.session_state.db_visitantes[~((st.session_state.db_visitantes['Data'] == dt_ref) & (st.session_state.db_visitantes['Líder'] == l_l))], pd.DataFrame([{"Data": dt_ref, "Líder": l_l, "Vis_Celula": vce, "Vis_Culto": vcu}])])
 
-            with st.spinner("Salvando na planilha..."):
-                ok = salvar_seguro("Presencas", dfp) and salvar_seguro("Visitantes", dfv)
-            if ok:
-                st.success("Salvo com sucesso!")
-                st.balloons()
-                st.session_state.presencas_bt = {}
-                for k in [k for k in st.session_state.keys() if str(k).startswith("seg_")]:
-                    del st.session_state[k]
-                time.sleep(1)
-                st.cache_data.clear(); st.rerun()
+                with st.spinner("Salvando na planilha..."):
+                    ok = salvar_seguro("Presencas", dfp) and salvar_seguro("Visitantes", dfv)
+                if ok:
+                    # guarda o link para o botão do WhatsApp continuar aparecendo depois de salvar
+                    st.session_state.ultimo_envio = {"link": link_wpp, "cel": l_l, "data": dt_ref}
+                    st.session_state.presencas_bt = {}
+                    for k in [k for k in st.session_state.keys() if str(k).startswith(("seg_", "vce_", "vcu_"))]:
+                        del st.session_state[k]
+                    st.cache_data.clear(); st.rerun()
+
+            if "ultimo_envio" not in st.session_state:
+                st.link_button("📲 Enviar relatório para o Discipulador", link_wpp, use_container_width=True)
+
+        preencher()
+
+        ult = st.session_state.get("ultimo_envio")
+        if ult:
+            with st.container(key="salvo_ok"):
+                st.markdown(f'<div class="ok">✅ <b>Salvo com sucesso!</b> Célula de {ult["cel"]} · {ult["data"]}<br>'
+                            f'Agora toque no botão verde para enviar o relatório ao seu Discipulador.</div>', unsafe_allow_html=True)
+                cw1, cw2 = st.columns([3, 1])
+                cw1.link_button("📲 Enviar relatório para o Discipulador", ult["link"], use_container_width=True)
+                if cw2.button("Fechar", use_container_width=True):
+                    del st.session_state["ultimo_envio"]; st.rerun()
+
 
 # =====================================================================
 # ABA GESTÃO
@@ -654,3 +906,71 @@ if tab_ob:
                     else: ln[datetime.strptime(d, '%Y-%m-%d').strftime('%d/%m')] = "❌ | ❌"
                 cham_d.append(ln)
             st.dataframe(pd.DataFrame(cham_d), use_container_width=True, hide_index=True)
+
+            # ================= FECHAMENTO DO MÊS → OBREIRO =================
+            secao("📤 Fechamento do mês", f"enviar o relatório de {m_ob} para o Obreiro")
+            n_m = MESES_MAP[m_ob]
+            sabados_mes = [date(2026, n_m, d) for d in range(1, 32)
+                           if (date(2026, n_m, 1) + timedelta(days=d-1)).month == n_m
+                           and (date(2026, n_m, 1) + timedelta(days=d-1)).weekday() == 5]
+            sabados_passados = [sb for sb in sabados_mes if sb <= date.today()]
+            mes_fechado = len(sabados_passados) == len(sabados_mes)
+            cels_rede = sorted(st.session_state.membros_cadastrados.keys())
+
+            # Situação de cada célula: quantos sábados ela lançou
+            pend = []
+            for cel in cels_rede:
+                lanc = df_ob[df_ob['Líder'] == cel]['Data_Ref'].nunique()
+                if lanc < len(sabados_passados): pend.append((cel, lanc))
+
+            with st.container(border=True):
+                s1, s2, s3 = st.columns(3)
+                kpi(s1, "Sábados do mês", f"{len(sabados_passados)}/{len(sabados_mes)}", "#F59E0B",
+                    "mês encerrado" if mes_fechado else "mês em andamento", len(sabados_passados) / len(sabados_mes) * 100)
+                kpi(s2, "Células em dia", f"{len(cels_rede) - len(pend)}/{len(cels_rede)}", COR_VIS,
+                    "lançaram todos os sábados", (len(cels_rede) - len(pend)) / max(len(cels_rede), 1) * 100)
+                tot_ce = int(df_ob['Célula'].sum() + df_v_ob['Vis_Celula'].sum())
+                tot_cu = int(df_ob['Culto'].sum() + df_v_ob['Vis_Culto'].sum())
+                kpi(s3, "Total do mês", f"{tot_ce} / {tot_cu}", COR_PRIMARIA, "presenças célula / culto")
+
+                if not mes_fechado:
+                    st.warning(f"{m_ob} ainda não terminou. Você pode enviar uma parcial, mas o ideal é enviar depois do último sábado "
+                               f"({sabados_mes[-1].strftime('%d/%m')}).")
+                if pend:
+                    st.markdown("".join(f'<div class="alerta">⏳ <b>{c}</b> lançou {l} de {len(sabados_passados)} sábado(s)</div>' for c, l in pend),
+                                unsafe_allow_html=True)
+                else:
+                    st.markdown('<div class="ok">✅ Todas as células lançaram todos os sábados.</div>', unsafe_allow_html=True)
+
+                # ---- Monta a mensagem ----
+                msg = [f"*📊 Fechamento de {m_ob}/2026*" + ("" if mes_fechado else " _(parcial)_"),
+                       "Rede Deric e Nayara", "",
+                       "*Semana a semana* (célula | culto)"]
+                for d_r in sorted(df_ob['Data_Ref'].unique()):
+                    df_s = df_ob[df_ob['Data_Ref'] == d_r]
+                    mb = df_s[df_s['Tipo'].isin(['Membro', 'Liderança'])]
+                    fa = df_s[df_s['Tipo'] == "FA"]
+                    vv = df_v_ob[df_v_ob['Data_Ref'] == d_r]
+                    mce, mcu, fce, fcu = int(mb['Célula'].sum()), int(mb['Culto'].sum()), int(fa['Célula'].sum()), int(fa['Culto'].sum())
+                    vce_, vcu_ = int(vv['Vis_Celula'].sum()), int(vv['Vis_Culto'].sum())
+                    msg.append(f"🗓️ {datetime.strptime(d_r, '%Y-%m-%d').strftime('%d/%m')} — Memb. {mce}|{mcu} · FA {fce}|{fcu} · "
+                               f"Visit. {vce_}|{vcu_} · *Total {mce+fce+vce_}|{mcu+fcu+vcu_}*")
+                n_sem = max(df_ob['Data_Ref'].nunique(), 1)
+                msg += ["", f"*Total do mês:* célula {tot_ce} | culto {tot_cu}",
+                        f"*Média por sábado:* célula {tot_ce / n_sem:.0f} | culto {tot_cu / n_sem:.0f}",
+                        f"✨ *Visitantes no mês:* célula {int(df_v_ob['Vis_Celula'].sum())} | culto {int(df_v_ob['Vis_Culto'].sum())}",
+                        "", "*Por célula* (presença célula · culto · visitantes)"]
+                for cel in cels_rede:
+                    dc = df_ob[df_ob['Líder'] == cel]
+                    if dc.empty:
+                        msg.append(f"🏠 {cel} — sem lançamentos"); continue
+                    msg.append(f"🏠 {cel} — {dc['Célula'].mean()*100:.0f}% · {dc['Culto'].mean()*100:.0f}% · "
+                               f"{int(df_v_ob[df_v_ob['Líder'] == cel]['Vis_Celula'].sum())} visit.")
+                if pend:
+                    msg += ["", "⏳ *Lançamentos pendentes:* " + ", ".join(f"{c} ({l}/{len(sabados_passados)})" for c, l in pend)]
+                texto = chr(10).join(msg)
+
+                with st.expander("👀 Ver a mensagem antes de enviar"):
+                    st.code(texto, language=None, wrap_lines=True)
+                st.link_button(f"📲 Enviar fechamento de {m_ob} para o Obreiro",
+                               f"https://wa.me/{NUMERO_OBREIRO}?text={quote(texto)}", use_container_width=True)
