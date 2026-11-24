@@ -11,7 +11,7 @@ from streamlit_gsheets import GSheetsConnection
 # =====================================================================
 # 1. CONFIGURAÇÃO  (nada mudou na conexão com o Google Sheets)
 # =====================================================================
-st.set_page_config(page_title="Deric Relatorio 2026", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="Deric Relatorio 2026", layout="wide", page_icon="⛪")
 
 URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1Bb9wK8dwRYjOJ5leTKxT9VQ0Ib7z-aD5MXCHJX0hNXs/edit?usp=sharing"
 conn = st.connection("gsheets", type=GSheetsConnection)
