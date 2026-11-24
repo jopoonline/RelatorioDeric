@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from datetime import date, timedelta, datetime
 import time
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 from streamlit_gsheets import GSheetsConnection
 
 # =====================================================================
@@ -75,184 +76,155 @@ st.session_state.membros_cadastrados = m_dict
 # =====================================================================
 # 4. ESTILO (visual novo)
 # =====================================================================
-COR_FUNDO = "#0B1120"
-COR_CARD = "#131C31"
-COR_BORDA = "#1F2A44"
-COR_TEXTO = "#E2E8F0"
-COR_SUAVE = "#94A3B8"
-COR_PRIMARIA = "#38BDF8"   # Membros
-COR_FA = "#A78BFA"         # FA
-COR_VIS = "#34D399"        # Visitantes
-COR_ALERTA = "#F87171"
+COR_FUNDO = "#080C18"
+COR_CARD = "#111827"
+COR_BORDA = "rgba(255,255,255,.08)"
+COR_TEXTO = "#CBD3E6"
+COR_SUAVE = "#8E99B5"
+COR_PRIMARIA = "#22D3EE"   # Membros
+COR_FA = "#818CF8"         # FA
+COR_VIS = "#FBBF24"        # Visitantes
+COR_OK = "#34D399"         # verde (bom)
+COR_ALERTA = "#FB7185"
 
-st.markdown(f"""
+st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+html, body, .stApp, .stApp p, .stApp label, .stApp input, .stApp button, .stApp div { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.stApp { background: radial-gradient(900px 500px at 100% -10%, rgba(129,140,248,.16) 0%, rgba(8,12,24,0) 60%), radial-gradient(900px 500px at 0% 0%, rgba(34,211,238,.12) 0%, rgba(8,12,24,0) 55%), #080C18; color: #E5E9F5; }
+.stApp p, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4 { color: #E5E9F5; }
+.block-container { padding-top: 1.6rem; padding-bottom: 3rem; max-width: 1320px; }
+[data-testid="stHeader"] { background: transparent; }
+#MainMenu, footer { visibility: hidden; }
 
-html, body, [class*="css"], .stApp {{ font-family: 'Inter', sans-serif; }}
-.stApp {{ background: radial-gradient(1200px 600px at 10% -10%, #12234a 0%, {COR_FUNDO} 55%); color: {COR_TEXTO}; }}
-#MainMenu, footer {{ visibility: hidden; }}
-.block-container {{ padding-top: 1.5rem; padding-bottom: 3rem; max-width: 1300px; }}
+/* ---------- Cabeçalho ---------- */
+.hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; padding: 26px 28px; border-radius: 24px; margin-bottom: 18px; border: 1px solid rgba(255,255,255,.08); background: linear-gradient(120deg, rgba(34,211,238,.16) 0%, rgba(129,140,248,.14) 55%, rgba(255,255,255,.03) 100%); }
+.hero-marca { display: flex; align-items: center; gap: 18px; }
+.hero-emoji { font-size: 46px; line-height: 1; }
+.hero-kicker { color: #22D3EE; font-size: 12px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; }
+.hero-titulo { color: #FFFFFF; font-size: clamp(28px, 5.5vw, 46px); font-weight: 800; letter-spacing: -1.2px; line-height: 1.05; margin-top: 4px; }
+.hero-sub { color: #A5AEC6; font-size: 14px; margin-top: 6px; }
+.hero-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(8,12,24,.55); border: 1px solid rgba(255,255,255,.1); color: #CBD3E6; font-size: 12px; font-weight: 600; }
+.ponto { width: 8px; height: 8px; border-radius: 50%; background: #34D399; box-shadow: 0 0 0 4px rgba(52,211,153,.18); display: inline-block; }
 
-/* Cabeçalho */
-.hero {{
-    background: linear-gradient(135deg, #0EA5E9 0%, #6366F1 60%, #8B5CF6 100%);
-    border-radius: 18px; padding: 22px 28px; margin-bottom: 18px;
-    box-shadow: 0 10px 30px rgba(14,165,233,.18);
-}}
-.hero h1 {{ color: white; font-size: 1.9rem; font-weight: 800; margin: 0; line-height: 1.2; }}
-.hero p  {{ color: rgba(255,255,255,.85); margin: 4px 0 0 0; font-size: .95rem; }}
+/* ---------- Abas em pílula ---------- */
+.stTabs [role="tablist"] { gap: 4px; background: rgba(255,255,255,.04); padding: 5px; border-radius: 999px; border: 1px solid rgba(255,255,255,.08) !important; width: fit-content; max-width: 100%; box-shadow: none !important; overflow-x: auto; scrollbar-width: none; }
+.stTabs [role="tab"] { border-radius: 999px !important; padding: 8px 20px; height: auto; background: transparent; border: 0 !important; box-shadow: none !important; white-space: nowrap; flex-shrink: 0; }
+.stTabs [role="tab"] p { color: #A5AEC6; font-weight: 700; font-size: 14px; }
+.stTabs [role="tab"][aria-selected="true"] { background: #FFFFFF !important; }
+.stTabs [role="tab"][aria-selected="true"] p { color: #080C18; }
+.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { display: none !important; }
+.stTabs [role="tablist"]::before, .stTabs [role="tablist"]::after, .stTabs [role="tab"]::before, .stTabs [role="tab"]::after { display: none !important; }
 
-/* Abas */
-.stTabs [data-baseweb="tab-list"] {{ gap: 6px; background: {COR_CARD}; padding: 6px; border-radius: 12px; border: 1px solid {COR_BORDA}; }}
-.stTabs [data-baseweb="tab"] {{ border-radius: 8px; padding: 8px 16px; color: {COR_SUAVE}; font-weight: 600; }}
-.stTabs [aria-selected="true"] {{ background: #1E3A5F !important; color: white !important; }}
-.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] {{ display: none; }}
+/* ---------- Títulos de seção ---------- */
+.sec { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 1.5rem 0 .8rem 0; font-size: 17px; font-weight: 700; color: #FFFFFF; }
+.sec::before { content: ""; width: 4px; height: 18px; border-radius: 4px; background: linear-gradient(180deg, #22D3EE, #818CF8); }
+.sec small { font-size: 12px; font-weight: 500; color: #8E99B5; }
 
-/* Cards de métrica */
-.kpi {{
-    background: {COR_CARD}; border: 1px solid {COR_BORDA}; border-radius: 14px;
-    padding: 14px 16px; margin-bottom: 12px; position: relative; overflow: hidden;
-}}
-.kpi::before {{ content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }}
-.kpi-label {{ font-size: .78rem; color: {COR_SUAVE}; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }}
-.kpi-value {{ font-size: 1.7rem; font-weight: 800; color: white; margin-top: 2px; }}
-.kpi-sub   {{ font-size: .78rem; color: {COR_SUAVE}; }}
-.kpi-bar   {{ height: 6px; background: #0F172A; border-radius: 99px; margin-top: 8px; overflow: hidden; }}
-.kpi-bar > div {{ height: 100%; background: var(--c); border-radius: 99px; }}
+/* ---------- Cartões de número ---------- */
+.kpi { position: relative; overflow: hidden; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 14px 16px 14px 20px; margin-bottom: 12px; }
+.kpi::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c, #22D3EE); }
+.kpi-label { color: #8E99B5; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.kpi-value { color: #FFFFFF; white-space: nowrap; font-size: clamp(20px, 2.1vw, 26px); font-weight: 800; line-height: 1.25; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
+.kpi-sub { color: #8E99B5; font-size: 12px; min-height: 18px; }
+.kpi-bar { height: 6px; background: rgba(8,12,24,.6); border-radius: 999px; margin-top: 8px; overflow: hidden; }
+.kpi-bar > div { height: 100%; background: var(--c); border-radius: 999px; }
 
-/* Títulos de seção */
-.sec {{ font-size: 1.15rem; font-weight: 700; color: white; margin: 18px 0 10px 0; display: flex; align-items: center; gap: 8px; }}
-.sec small {{ color: {COR_SUAVE}; font-weight: 500; font-size: .85rem; }}
+/* ---------- Avisos ---------- */
+.alerta { background: rgba(251,113,133,.08); border: 1px solid rgba(251,113,133,.3); border-radius: 14px; padding: 9px 14px; margin-bottom: 6px; font-size: .9rem; color: #FECDD3; }
+.alerta b { color: #FFFFFF; }
+.ok { background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.3); border-radius: 14px; padding: 11px 16px; color: #A7F3D0; }
 
-/* Alertas */
-.alerta {{
-    background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.35);
-    border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; font-size: .9rem; color: #FECACA;
-}}
-.alerta b {{ color: white; }}
-.ok {{
-    background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.35);
-    border-radius: 10px; padding: 10px 14px; color: #A7F3D0;
-}}
+/* ---------- Pessoa (chamada) ---------- */
+.pessoa { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+.avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #080C18; font-size: .95rem; flex-shrink: 0; }
+.pessoa-nome { font-weight: 700; color: #FFFFFF; font-size: 1.02rem; line-height: 1.15; }
+.badge { display: inline-block; font-size: .7rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; margin-top: 3px; }
 
-/* Lançamento - linha de pessoa */
-.pessoa {{ display: flex; align-items: center; gap: 12px; padding: 4px 0; }}
-.avatar {{
-    width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-weight: 800; color: white; font-size: .95rem; flex-shrink: 0;
-}}
-.pessoa-nome {{ font-weight: 700; color: white; font-size: 1rem; line-height: 1.1; }}
-.badge {{ display: inline-block; font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; margin-top: 3px; }}
+/* ---------- Passos do relatório do líder ---------- */
+.passo { display: flex; align-items: center; gap: 10px; font-weight: 700; color: #FFFFFF; font-size: 1.05rem; margin: 22px 0 10px 0; }
+.passo span { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #22D3EE, #818CF8); color: #080C18; display: flex; align-items: center; justify-content: center; font-size: .9rem; font-weight: 800; flex-shrink: 0; }
+.placar { display: flex; gap: 10px; margin: 4px 0 12px 0; }
+.placar > div { flex: 1; background: linear-gradient(135deg, rgba(34,211,238,.16), rgba(129,140,248,.14)); border: 1px solid rgba(34,211,238,.28); border-radius: 18px; padding: 12px; text-align: center; color: #CBD3E6; font-size: 1rem; }
+.placar b { color: #FFFFFF; font-size: 1.7rem; font-weight: 800; }
+.placar small { display: block; font-size: .75rem; margin-top: 2px; }
 
-/* Botões */
-.stButton > button {{ border-radius: 10px; font-weight: 600; border: 1px solid {COR_BORDA}; transition: all .15s; }}
-.stButton > button:hover {{ transform: translateY(-1px); }}
-.stButton > button[kind="primary"] {{ background: linear-gradient(135deg, #0EA5E9, #6366F1); border: none; }}
+/* ---------- Contêineres, gráficos, expanders ---------- */
+[data-testid="stVerticalBlockBorderWrapper"] { border-radius: 20px !important; border-color: rgba(255,255,255,.08) !important; background: rgba(255,255,255,.03); }
+[data-testid="stExpander"] details { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08) !important; border-radius: 16px; }
+[data-testid="stExpander"] summary p { color: #FFFFFF !important; }
+section[data-testid="stSidebar"] { background: #0B1020; border-right: 1px solid rgba(255,255,255,.08); }
 
-/* Contêineres com borda */
-[data-testid="stVerticalBlockBorderWrapper"] {{ border-radius: 14px !important; border-color: {COR_BORDA} !important; background: {COR_CARD}; }}
+/* ---------- Botões ---------- */
+.stButton > button { border-radius: 999px !important; font-weight: 800; min-height: 46px; transition: filter .15s; }
+.stButton > button[kind="primary"], button[data-testid="stBaseButton-primary"] { background: linear-gradient(90deg, #22D3EE 0%, #818CF8 100%) !important; color: #080C18 !important; border: 0 !important; }
+.stButton > button[kind="primary"] p, button[data-testid="stBaseButton-primary"] p { color: #080C18 !important; font-weight: 800; }
+div.stButton > button[kind="primary"] { min-height: 58px; font-size: 1.1rem; }
+button[data-testid="stBaseButton-secondary"] { background: rgba(255,255,255,.06) !important; color: #FFFFFF !important; border: 1px solid rgba(255,255,255,.1) !important; }
+button[data-testid="stBaseButton-secondary"] p { color: #FFFFFF !important; }
+.stButton > button:hover { filter: brightness(1.12); }
 
-/* Sidebar */
-section[data-testid="stSidebar"] {{ background: #0A0F1C; border-right: 1px solid {COR_BORDA}; }}
+/* Botões Célula / Culto (seleção), grandes e redondos */
+[data-testid="stElementContainer"]:has([data-testid="stButtonGroup"]) { width: 100% !important; }
+[data-testid="stButtonGroup"], [data-testid="stButtonGroup"] [role="toolbar"] { width: 100% !important; max-width: none !important; flex: 1 1 auto !important; }
+[data-testid="stButtonGroup"] [role="toolbar"] { display: flex; gap: 8px; flex-wrap: nowrap; }
+[data-testid="stButtonGroup"] button { flex: 1 1 0 !important; max-width: none !important; min-height: 52px; border-radius: 999px !important; border: 1px solid rgba(255,255,255,.1) !important; background: rgba(8,12,24,.55) !important; color: #A5AEC6 !important; font-weight: 700; }
+[data-testid="stButtonGroup"] button p { font-size: 1.05rem !important; color: inherit !important; font-weight: 700; }
+[data-testid="stButtonGroup"] button[aria-pressed="true"], [data-testid="stButtonGroup"] button[data-selected="true"], [data-testid="stButtonGroup"] button[kind$="Active"] { background: linear-gradient(90deg, #22D3EE 0%, #818CF8 100%) !important; color: #080C18 !important; border-color: transparent !important; }
 
-/* Mobile */
-@media (max-width: 640px) {{
-    .hero h1 {{ font-size: 1.4rem; }}
-    .kpi-value {{ font-size: 1.35rem; }}
-    .block-container {{ padding-left: .8rem; padding-right: .8rem; }}
-}}
+/* Atalhos lado a lado, também no celular */
+.st-key-atalhos [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; flex-direction: row !important; gap: 8px !important; }
+.st-key-atalhos [data-testid="stColumn"], .st-key-atalhos [data-testid="column"] { min-width: 0 !important; width: auto !important; flex: 1 1 0 !important; }
+.st-key-atalhos button { min-height: 40px !important; padding: 0 6px !important; }
+.st-key-atalhos button p { font-size: .9rem !important; }
 
-/* ===== Preenchimento no celular ===== */
-.passo {{ display:flex; align-items:center; gap:10px; font-weight:700; color:white; font-size:1.05rem; margin:20px 0 8px 0; }}
-.passo span {{ width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,#0EA5E9,#6366F1);
-              display:flex; align-items:center; justify-content:center; font-size:.9rem; flex-shrink:0; }}
-.placar {{ display:flex; gap:10px; margin:4px 0 12px 0; position:sticky; top:0; z-index:5; }}
-.placar > div {{ flex:1; background:#131C31; border:1px solid #1F2A44; border-radius:12px; padding:10px; text-align:center; color:#94A3B8; font-size:1rem; }}
-.placar b {{ color:white; font-size:1.6rem; font-weight:800; }}
-.placar small {{ display:block; font-size:.75rem; margin-top:2px; }}
+/* Botão do WhatsApp */
+[data-testid="stLinkButton"] a { background: #25D366 !important; color: #06260F !important; border: none !important; min-height: 54px; border-radius: 999px !important; font-weight: 800 !important; justify-content: center !important; text-align: center !important; }
+[data-testid="stLinkButton"] a p { color: #06260F !important; font-size: 1.05rem !important; font-weight: 800 !important; }
+.st-key-salvo_ok .ok { margin-bottom: 10px; }
 
-/* Botões Célula / Culto: grandes, lado a lado, fáceis de tocar */
-[data-testid="stButtonGroup"] {{ width:100%; }}
-[data-testid="stButtonGroup"] > div {{ width:100%; display:flex; gap:8px; flex-wrap:nowrap; }}
-[data-testid="stButtonGroup"] button {{
-    flex:1 1 0; min-height:52px; font-size:1.05rem !important; font-weight:700; border-radius:12px !important;
-    border:1px solid #1F2A44 !important; background:#0F172A !important; color:#94A3B8 !important;
-}}
-[data-testid="stButtonGroup"] button[kind$="Active"], [data-testid="stButtonGroup"] button[aria-checked="true"] {{
-    background:linear-gradient(135deg,#0EA5E9,#6366F1) !important; color:white !important; border-color:transparent !important;
-}}
-/* number_input maior para o dedo */
-[data-testid="stNumberInput"] input {{ font-size:1.3rem; font-weight:700; text-align:center; min-height:48px; }}
-[data-testid="stNumberInput"] button {{ min-width:44px; }}
-.stButton > button {{ min-height:46px; }}
-div.stButton > button[kind="primary"] {{ min-height:58px; font-size:1.1rem; }}
+/* ---------- Campos ---------- */
+[data-testid="stWidgetLabel"] p, .stRadio label p, .stCheckbox label p, [data-testid="stCaptionContainer"] { color: #CBD3E6 !important; }
+[data-testid="stSelectbox"] [role="group"], [data-testid="stMultiSelect"] [role="group"], [data-baseweb="select"] > div, [data-baseweb="input"] > div, [data-testid="stNumberInputContainer"] { background: rgba(8,12,24,.6) !important; border-color: rgba(255,255,255,.1) !important; border-radius: 14px !important; }
+[data-testid="stSelectbox"] input, [data-testid="stSelectbox"] [role="group"] *, [data-baseweb="input"] input, [data-testid="stNumberInput"] input { color: #FFFFFF !important; background: transparent !important; }
+[data-testid="stNumberInput"] input { font-size: 1.3rem; font-weight: 800; text-align: center; min-height: 48px; }
+[data-testid="stNumberInput"] button { background: rgba(255,255,255,.06) !important; color: #FFFFFF !important; border: none !important; min-width: 44px; }
+[data-baseweb="tag"] { background: rgba(34,211,238,.18) !important; border-radius: 999px !important; }
+[data-baseweb="tag"] span { color: #FFFFFF !important; }
 
-@media (max-width: 640px) {{
-    .pessoa-nome {{ font-size:1.05rem; }}
-    [data-testid="stVerticalBlockBorderWrapper"] {{ padding:2px !important; }}
-}}
+/* ---------- Aba Frequência ---------- */
+.cel-card { background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); border-radius: 20px; padding: 16px 18px; margin-bottom: 12px; position: relative; overflow: hidden; }
+.cel-card::before { content: ""; position: absolute; left: 0; top: 16px; bottom: 16px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c); }
+.cel-top { display: flex; align-items: center; gap: 10px; }
+.cel-nome { font-weight: 700; color: #FFFFFF; font-size: 1rem; line-height: 1.15; }
+.cel-nome small { display: block; color: #8E99B5; font-weight: 500; font-size: .72rem; }
+.cel-meio { display: flex; align-items: flex-end; justify-content: space-between; margin: 10px 0 6px 0; }
+.cel-big { font-size: 2rem; font-weight: 800; line-height: 1; letter-spacing: -.5px; }
+.cel-lbl { font-size: .72rem; color: #8E99B5; margin-top: 3px; }
+.cel-rodape { display: flex; gap: 12px; flex-wrap: wrap; font-size: .8rem; color: #8E99B5; border-top: 1px solid rgba(255,255,255,.08); padding-top: 8px; }
+.cel-rodape b { color: #FFFFFF; }
+.cel-vazio { color: #64748B; font-size: .85rem; padding: 16px 0 6px 0; }
+.dest-tit { font-weight: 800; font-size: 1rem; }
+.dest-sub { color: #8E99B5; font-size: .75rem; margin-bottom: 8px; }
+.dest-linha { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.08); color: #FFFFFF; font-size: .92rem; }
+.dest-cel { font-size: .7rem; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); color: #CBD3E6; padding: 2px 10px; border-radius: 999px; }
+.dest-num { margin-left: auto; font-weight: 700; font-size: .82rem; }
 
-/* ===== Tema escuro nos campos (legível mesmo sem config.toml) ===== */
-[data-testid="stWidgetLabel"] p, .stRadio label p, .stCheckbox label p, [data-testid="stCaptionContainer"] {{ color:#CBD5E1 !important; }}
-[data-baseweb="select"] > div, [data-baseweb="input"] > div, [data-baseweb="base-input"], [data-testid="stNumberInputContainer"] {{
-    background:#0F172A !important; border-color:#1F2A44 !important; color:white !important; }}
-[data-baseweb="select"] *, [data-baseweb="input"] input, [data-testid="stNumberInput"] input {{ color:white !important; background:transparent !important; }}
-[data-baseweb="select"] svg {{ fill:#94A3B8 !important; }}
-[data-testid="stNumberInput"] button {{ background:#1E293B !important; color:white !important; border:none !important; }}
-button[data-testid="stBaseButton-secondary"] {{ background:#1E293B !important; color:white !important; border:1px solid #1F2A44 !important; }}
-button[data-testid="stBaseButton-secondary"] p {{ color:white !important; }}
-[data-testid="stExpander"] details {{ background:#131C31; border-color:#1F2A44 !important; border-radius:12px; }}
-[data-testid="stExpander"] summary p {{ color:white !important; }}
-[data-baseweb="tag"] {{ background:#1E3A5F !important; }}
-
-/* Segmented (Célula / Culto) ocupando a largura toda */
-[data-testid="stElementContainer"]:has([data-testid="stButtonGroup"]) {{ width:100% !important; }}
-[data-testid="stButtonGroup"] [role="toolbar"] {{ width:100%; display:flex; gap:8px; flex-wrap:nowrap; }}
-[data-testid="stButtonGroup"] button {{ flex:1 1 0 !important; max-width:none !important; }}
-[data-testid="stButtonGroup"] button p {{ font-size:1.05rem !important; color:inherit !important; }}
-[data-testid="stButtonGroup"] button[aria-pressed="true"], [data-testid="stButtonGroup"] button[data-selected="true"] {{
-    background:linear-gradient(135deg,#0EA5E9,#6366F1) !important; color:white !important; border-color:transparent !important; }}
-
-/* Atalhos sempre lado a lado, inclusive no celular */
-.st-key-atalhos [data-testid="stHorizontalBlock"] {{ flex-wrap:nowrap !important; flex-direction:row !important; gap:8px !important; }}
-.st-key-atalhos [data-testid="stColumn"], .st-key-atalhos [data-testid="column"] {{ min-width:0 !important; width:auto !important; flex:1 1 0 !important; }}
-.st-key-atalhos button {{ min-height:40px !important; padding:0 6px !important; }}
-.st-key-atalhos button p {{ font-size:.9rem !important; }}
-
-[data-testid="stSelectbox"] [role="group"], [data-testid="stMultiSelect"] [role="group"] {{ background:#0F172A !important; border-color:#1F2A44 !important; }}
-[data-testid="stSelectbox"] input, [data-testid="stSelectbox"] [role="group"] * {{ color:white !important; }}
-[data-testid="stButtonGroup"], [data-testid="stButtonGroup"] [role="toolbar"] {{ width:100% !important; max-width:none !important; flex:1 1 auto !important; }}
-
-/* ===== Aba Frequência ===== */
-.cel-card {{ background:#131C31; border:1px solid #1F2A44; border-radius:16px; padding:14px 16px; margin-bottom:12px; border-top:3px solid var(--c); }}
-.cel-top {{ display:flex; align-items:center; gap:10px; }}
-.cel-nome {{ font-weight:700; color:white; font-size:1rem; line-height:1.15; }}
-.cel-nome small {{ display:block; color:#94A3B8; font-weight:500; font-size:.72rem; }}
-.cel-meio {{ display:flex; align-items:flex-end; justify-content:space-between; margin:10px 0 6px 0; }}
-.cel-big {{ font-size:2rem; font-weight:800; line-height:1; }}
-.cel-lbl {{ font-size:.72rem; color:#94A3B8; margin-top:3px; }}
-.cel-rodape {{ display:flex; gap:12px; flex-wrap:wrap; font-size:.8rem; color:#94A3B8; border-top:1px solid #1F2A44; padding-top:8px; }}
-.cel-rodape b {{ color:white; }}
-.cel-vazio {{ color:#64748B; font-size:.85rem; padding:16px 0 6px 0; }}
-.dest-tit {{ font-weight:800; font-size:1rem; }}
-.dest-sub {{ color:#94A3B8; font-size:.75rem; margin-bottom:8px; }}
-.dest-linha {{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 0; border-bottom:1px solid #1F2A44; color:white; font-size:.92rem; }}
-.dest-cel {{ font-size:.7rem; background:#1E293B; color:#CBD5E1; padding:2px 8px; border-radius:99px; }}
-.dest-num {{ margin-left:auto; font-weight:700; font-size:.82rem; }}
-
-/* Botão WhatsApp */
-[data-testid="stLinkButton"] a {{ background:#25D366 !important; color:#06260F !important; border:none !important;
-    min-height:54px; border-radius:12px !important; font-weight:800 !important; justify-content:center !important; text-align:center !important; }}
-[data-testid="stLinkButton"] a p {{ color:#06260F !important; font-size:1.05rem !important; font-weight:800 !important; }}
-.st-key-salvo_ok .ok {{ margin-bottom:10px; }}
+/* ---------- Celular ---------- */
+@media (max-width: 640px) {
+    .hero { padding: 20px; border-radius: 20px; }
+    .hero-emoji { font-size: 36px; }
+    .block-container { padding-left: .8rem; padding-right: .8rem; }
+    .stTabs [role="tab"] { padding: 7px 14px; }
+    [data-testid="stVerticalBlockBorderWrapper"] { padding: 2px !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
 MESES_NOMES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 MESES_MAP = {n: i+1 for i, n in enumerate(MESES_NOMES)}
 
-CORES_TIPO = {"Liderança": "#F59E0B", "Membro": COR_PRIMARIA, "FA": COR_FA}
+CORES_TIPO = {"Liderança": "#34D399", "Membro": COR_PRIMARIA, "FA": COR_FA}
 
 
 # ---------- Helpers visuais ----------
@@ -278,13 +250,14 @@ def estilo_grafico(fig, altura=320):
     fig.update_layout(
         height=altura, template="plotly_dark",
         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter", color=COR_TEXTO),
-        margin=dict(l=10, r=10, t=40, b=10),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, bgcolor="rgba(0,0,0,0)"),
+        font=dict(family="Plus Jakarta Sans, sans-serif", color=COR_TEXTO, size=13),
+        hoverlabel=dict(bgcolor="#0B1020", font_color="#FFFFFF", bordercolor="rgba(255,255,255,.15)"),
+        margin=dict(l=12, r=12, t=34, b=8),
+        legend=dict(orientation="h", yanchor="top", y=-0.14, xanchor="center", x=0.5, bgcolor="rgba(0,0,0,0)", title_text=""),
         hovermode="x unified",
     )
     fig.update_xaxes(showgrid=False, linecolor=COR_BORDA)
-    fig.update_yaxes(gridcolor="#1E293B", zeroline=False)
+    fig.update_yaxes(gridcolor="rgba(255,255,255,.06)", zeroline=False)
     return fig
 
 
@@ -292,8 +265,11 @@ def estilo_grafico(fig, altura=320):
 # CABEÇALHO
 # =====================================================================
 st.markdown(
-    f'<div class="hero"><h1>🛡️ Deric e Nayara</h1>'
-    f'<p>Relatório de Células e Culto · {datetime.now().strftime("%d/%m/%Y")}</p></div>',
+    '<div class="hero"><div class="hero-marca"><span class="hero-emoji">🛡️</span><div>'
+    '<div class="hero-kicker">Relatório 2026</div>'
+    '<div class="hero-titulo">Deric e Nayara</div>'
+    '<div class="hero-sub">Frequência de células e culto</div></div></div>'
+    f'<div class="hero-chip"><span class="ponto"></span>Planilha lida às {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")}</div></div>',
     unsafe_allow_html=True,
 )
 
@@ -380,7 +356,7 @@ if tab_dash:
                     fig.add_trace(go.Scatter(x=mrg['D'], y=mrg[modo], name='Membros + FA', mode='lines+markers+text',
                                              text=mrg[modo].astype(int), textposition="top center",
                                              line=dict(color=COR_PRIMARIA, width=3, shape="spline"), marker=dict(size=9),
-                                             fill="tozeroy", fillcolor="rgba(56,189,248,.10)"))
+                                             fill="tozeroy", fillcolor="rgba(34,211,238,.10)"))
                     fig.add_trace(go.Scatter(x=mrg['D'], y=mrg.iloc[:, 2], name='Visitantes', mode='lines+markers+text',
                                              text=mrg.iloc[:, 2].astype(int), textposition="bottom center",
                                              line=dict(color=COR_VIS, width=3, shape="spline"), marker=dict(size=9)))
@@ -406,7 +382,7 @@ if tab_dash:
                         dados_comp.append({"Mês": nome_m, "Métrica": "Total Geral", "Valor": val_mem + val_fa + val_vis})
                 if dados_comp:
                     fig_bar = px.bar(pd.DataFrame(dados_comp), x="Mês", y="Valor", color="Métrica", barmode="group", text_auto=True,
-                                     color_discrete_map={"Membro + FA": COR_PRIMARIA, "Visitante": COR_VIS, "Total Geral": "#64748B"})
+                                     color_discrete_map={"Membro + FA": COR_PRIMARIA, "Visitante": COR_VIS, "Total Geral": "#34D399"})
                     fig_bar.update_traces(marker_line_width=0, textposition="outside")
                     estilo_grafico(fig_bar, 380).update_layout(legend=dict(xanchor="center", x=0.5, title_text=""), bargap=0.25)
                     with st.container(border=True):
@@ -466,7 +442,7 @@ def fmt_pct(v):
 
 def cor_pct(v):
     if v is None: return COR_SUAVE
-    return COR_VIS if v >= 75 else ("#FBBF24" if v >= 50 else COR_ALERTA)
+    return COR_OK if v >= 75 else ("#FBBF24" if v >= 50 else COR_ALERTA)
 
 
 if tab_freq:
@@ -497,7 +473,7 @@ if tab_freq:
                 p_cu = pct(dm['Culto'])
                 kpi(k1, "Membros na célula", fmt_pct(p_mc), COR_PRIMARIA, "média do mês", p_mc)
                 kpi(k2, "FA na célula", fmt_pct(p_fc), COR_FA, "média do mês", p_fc)
-                kpi(k3, "Presença no culto", fmt_pct(p_cu), "#F59E0B", "Membros + FA", p_cu)
+                kpi(k3, "Presença no culto", fmt_pct(p_cu), COR_OK, "Membros + FA", p_cu)
                 kpi(k4, "Visitantes", int(dvm['Vis_Celula'].sum()), COR_VIS, f"célula · {int(dvm['Vis_Culto'].sum())} no culto")
 
                 # ---------- 1. Cards por célula ----------
@@ -517,9 +493,9 @@ if tab_freq:
                     tend = ""
                     if len(sem) >= 2:
                         dif = sem[-1] - sem[0]
-                        tend = f'<span style="color:{COR_VIS if dif >= 0 else COR_ALERTA};font-weight:700">{"▲" if dif >= 0 else "▼"} {abs(dif):.0f} pts</span>'
+                        tend = f'<span style="color:{COR_OK if dif >= 0 else COR_ALERTA};font-weight:700">{"▲" if dif >= 0 else "▼"} {abs(dif):.0f} pts</span>'
                     corpo = (f'<div class="cel-card" style="--c:{cor}">'
-                             f'<div class="cel-top"><div class="avatar" style="background:#F59E0B;width:34px;height:34px;font-size:.8rem">{iniciais(cel)}</div>'
+                             f'<div class="cel-top"><div class="avatar" style="background:linear-gradient(135deg,#22D3EE,#818CF8);width:34px;height:34px;font-size:.8rem">{iniciais(cel)}</div>'
                              f'<div class="cel-nome">{cel}<small>{nsem} sábado(s) lançado(s)</small></div></div>')
                     if pc is None:
                         corpo += f'<div class="cel-vazio">Sem lançamentos em {mes_f}</div></div>'
@@ -551,7 +527,7 @@ if tab_freq:
 
                 # ---------- 4. Mapa de calor por pessoa ----------
                 secao("🗓️ Presença de cada pessoa")
-                st.caption("🟩 célula e culto · 🟨 só um dos dois · 🟥 faltou · passe o dedo/mouse no quadrado para ver o detalhe")
+                st.caption("🟦 célula e culto · 🟨 só um dos dois · 🟥 faltou · passe o dedo/mouse no quadrado para ver o detalhe")
                 cel_hm = st.selectbox("Célula:", cels_f, key="freq_hm_cel")
                 dh = dm[dm['Líder'] == cel_hm]
                 if dh.empty:
@@ -575,7 +551,7 @@ if tab_freq:
                                 lh.append(f"Célula {'✅' if ce else '❌'} · Culto {'✅' if cu else '❌'}")
                         z.append(lz); txt.append(lt); hov.append(lh)
                         rot_y.append(f"{nome} · {tipo}")
-                    escala = [[0, "#7F1D1D"], [0.33, "#7F1D1D"], [0.34, "#A16207"], [0.66, "#A16207"], [0.67, "#047857"], [1, "#047857"]]
+                    escala = [[0, "#9F1239"], [0.33, "#9F1239"], [0.34, "#B45309"], [0.66, "#B45309"], [0.67, "#0E7490"], [1, "#0E7490"]]
                     fig_hm = go.Figure(go.Heatmap(z=z, x=rotulos_x, y=rot_y, text=txt, texttemplate="%{text}",
                                                   customdata=hov, hovertemplate="<b>%{y}</b><br>%{x}: %{customdata}<extra></extra>",
                                                   colorscale=escala, zmin=0, zmax=2, showscale=False, xgap=4, ygap=4, textfont=dict(size=16)))
@@ -604,7 +580,7 @@ if tab_freq:
                         if not prontos: st.caption("Nenhum FA nessa faixa ainda.")
                         for nome, cel, _, pc, pu, n in prontos:
                             st.markdown(f'<div class="dest-linha"><b>{nome}</b><span class="dest-cel">{cel}</span>'
-                                        f'<span class="dest-num" style="color:{COR_VIS}">🏠 {pc}/{n} · ⛪ {pu}/{n}</span></div>', unsafe_allow_html=True)
+                                        f'<span class="dest-num" style="color:{COR_OK}">🏠 {pc}/{n} · ⛪ {pu}/{n}</span></div>', unsafe_allow_html=True)
                 with d2c:
                     with st.container(border=True):
                         st.markdown(f'<div class="dest-tit" style="color:{COR_ALERTA}">📞 Membros que precisam de atenção</div>'
@@ -721,17 +697,24 @@ with tab_lanc:
             st.caption(f"Célula de **{l_l}** · sábado **{d_l.strftime('%d/%m/%Y')}**")
 
             # Mensagem do WhatsApp montada com o que está marcado na tela
-            linhas = [f"*📋 Relatório de Célula*",
-                      f"🏠 Célula: *{l_l}*",
-                      f"🗓️ Sábado: *{d_l.strftime('%d/%m/%Y')}*", ""]
-            for nome, tipo in pessoas:
-                ce = "✅" if st.session_state.presencas_bt[f"bt_cel_{nome}"] else "❌"
-                cu = "✅" if st.session_state.presencas_bt[f"bt_cul_{nome}"] else "❌"
-                linhas.append(f"👤 {nome} ({tipo}) — Célula {ce} | Culto {cu}")
-            linhas += ["",
-                       f"*Presentes na célula:* {tot_cel}/{total}",
-                       f"*Presentes no culto:* {tot_cul}/{total}",
-                       f"✨ *Visitantes:* célula {int(vce)} | culto {int(vcu)}"]
+            # Mensagem do WhatsApp SEM emojis (emojis chegam como "�" pelo link do WhatsApp)
+            def lista(nomes):
+                return chr(10).join(f"- {n}" for n in nomes) if nomes else "- ninguém"
+            pres_cel = [n for n, _ in pessoas if st.session_state.presencas_bt[f"bt_cel_{n}"]]
+            falt_cel = [n for n, _ in pessoas if not st.session_state.presencas_bt[f"bt_cel_{n}"]]
+            pres_cul = [n for n, _ in pessoas if st.session_state.presencas_bt[f"bt_cul_{n}"]]
+            falt_cul = [n for n, _ in pessoas if not st.session_state.presencas_bt[f"bt_cul_{n}"]]
+            linhas = ["*RELATÓRIO DE CÉLULA*",
+                      f"Célula: *{l_l}*",
+                      f"Sábado: *{d_l.strftime('%d/%m/%Y')}*",
+                      "",
+                      f"*CÉLULA - presentes ({tot_cel}/{total})*", lista(pres_cel),
+                      f"*CÉLULA - faltaram ({len(falt_cel)})*", lista(falt_cel),
+                      "",
+                      f"*CULTO - presentes ({tot_cul}/{total})*", lista(pres_cul),
+                      f"*CULTO - faltaram ({len(falt_cul)})*", lista(falt_cul),
+                      "",
+                      f"*VISITANTES:* célula {int(vce)} | culto {int(vcu)}"]
             link_wpp = f"https://wa.me/{NUMERO_DISCIPULADOR}?text={quote(chr(10).join(linhas))}"
 
             if st.button("💾 SALVAR LANÇAMENTO", use_container_width=True, type="primary"):
@@ -793,7 +776,7 @@ if tab_gestao:
         # Resumo
         cad = st.session_state.membros_cadastrados
         g1, g2, g3 = st.columns(3)
-        kpi(g1, "Células", len(cad), "#F59E0B")
+        kpi(g1, "Células", len(cad), COR_OK)
         kpi(g2, "Membros", sum(1 for ps in cad.values() for t in ps.values() if t == "Membro"), COR_PRIMARIA)
         kpi(g3, "FA", sum(1 for ps in cad.values() for t in ps.values() if t == "FA"), COR_FA)
 
@@ -925,9 +908,9 @@ if tab_ob:
 
             with st.container(border=True):
                 s1, s2, s3 = st.columns(3)
-                kpi(s1, "Sábados do mês", f"{len(sabados_passados)}/{len(sabados_mes)}", "#F59E0B",
+                kpi(s1, "Sábados do mês", f"{len(sabados_passados)}/{len(sabados_mes)}", COR_VIS,
                     "mês encerrado" if mes_fechado else "mês em andamento", len(sabados_passados) / len(sabados_mes) * 100)
-                kpi(s2, "Células em dia", f"{len(cels_rede) - len(pend)}/{len(cels_rede)}", COR_VIS,
+                kpi(s2, "Células em dia", f"{len(cels_rede) - len(pend)}/{len(cels_rede)}", COR_OK,
                     "lançaram todos os sábados", (len(cels_rede) - len(pend)) / max(len(cels_rede), 1) * 100)
                 tot_ce = int(df_ob['Célula'].sum() + df_v_ob['Vis_Celula'].sum())
                 tot_cu = int(df_ob['Culto'].sum() + df_v_ob['Vis_Culto'].sum())
@@ -943,9 +926,9 @@ if tab_ob:
                     st.markdown('<div class="ok">✅ Todas as células lançaram todos os sábados.</div>', unsafe_allow_html=True)
 
                 # ---- Monta a mensagem ----
-                msg = [f"*📊 Fechamento de {m_ob}/2026*" + ("" if mes_fechado else " _(parcial)_"),
+                msg = [f"*FECHAMENTO DE {m_ob.upper()}/2026*" + ("" if mes_fechado else " _(parcial)_"),
                        "Rede Deric e Nayara", "",
-                       "*Semana a semana* (célula | culto)"]
+                       "*SEMANA A SEMANA* (célula | culto)"]
                 for d_r in sorted(df_ob['Data_Ref'].unique()):
                     df_s = df_ob[df_ob['Data_Ref'] == d_r]
                     mb = df_s[df_s['Tipo'].isin(['Membro', 'Liderança'])]
@@ -953,21 +936,21 @@ if tab_ob:
                     vv = df_v_ob[df_v_ob['Data_Ref'] == d_r]
                     mce, mcu, fce, fcu = int(mb['Célula'].sum()), int(mb['Culto'].sum()), int(fa['Célula'].sum()), int(fa['Culto'].sum())
                     vce_, vcu_ = int(vv['Vis_Celula'].sum()), int(vv['Vis_Culto'].sum())
-                    msg.append(f"🗓️ {datetime.strptime(d_r, '%Y-%m-%d').strftime('%d/%m')} — Memb. {mce}|{mcu} · FA {fce}|{fcu} · "
-                               f"Visit. {vce_}|{vcu_} · *Total {mce+fce+vce_}|{mcu+fcu+vcu_}*")
+                    msg.append(f"- {datetime.strptime(d_r, '%Y-%m-%d').strftime('%d/%m')}: Memb. {mce}|{mcu}, FA {fce}|{fcu}, "
+                               f"Visit. {vce_}|{vcu_}, *Total {mce+fce+vce_}|{mcu+fcu+vcu_}*")
                 n_sem = max(df_ob['Data_Ref'].nunique(), 1)
                 msg += ["", f"*Total do mês:* célula {tot_ce} | culto {tot_cu}",
                         f"*Média por sábado:* célula {tot_ce / n_sem:.0f} | culto {tot_cu / n_sem:.0f}",
-                        f"✨ *Visitantes no mês:* célula {int(df_v_ob['Vis_Celula'].sum())} | culto {int(df_v_ob['Vis_Culto'].sum())}",
-                        "", "*Por célula* (presença célula · culto · visitantes)"]
+                        f"*Visitantes no mês:* célula {int(df_v_ob['Vis_Celula'].sum())} | culto {int(df_v_ob['Vis_Culto'].sum())}",
+                        "", "*POR CÉLULA* (presença célula | culto | visitantes)"]
                 for cel in cels_rede:
                     dc = df_ob[df_ob['Líder'] == cel]
                     if dc.empty:
-                        msg.append(f"🏠 {cel} — sem lançamentos"); continue
-                    msg.append(f"🏠 {cel} — {dc['Célula'].mean()*100:.0f}% · {dc['Culto'].mean()*100:.0f}% · "
+                        msg.append(f"- {cel}: sem lançamentos"); continue
+                    msg.append(f"- {cel}: {dc['Célula'].mean()*100:.0f}% | {dc['Culto'].mean()*100:.0f}% | "
                                f"{int(df_v_ob[df_v_ob['Líder'] == cel]['Vis_Celula'].sum())} visit.")
                 if pend:
-                    msg += ["", "⏳ *Lançamentos pendentes:* " + ", ".join(f"{c} ({l}/{len(sabados_passados)})" for c, l in pend)]
+                    msg += ["", "*Lançamentos pendentes:* " + ", ".join(f"{c} ({l}/{len(sabados_passados)})" for c, l in pend)]
                 texto = chr(10).join(msg)
 
                 with st.expander("👀 Ver a mensagem antes de enviar"):
