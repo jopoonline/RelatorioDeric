@@ -161,6 +161,67 @@ section[data-testid="stSidebar"] {{ background: #0A0F1C; border-right: 1px solid
     .kpi-value {{ font-size: 1.35rem; }}
     .block-container {{ padding-left: .8rem; padding-right: .8rem; }}
 }}
+
+/* ===== Preenchimento no celular ===== */
+.passo {{ display:flex; align-items:center; gap:10px; font-weight:700; color:white; font-size:1.05rem; margin:20px 0 8px 0; }}
+.passo span {{ width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,#0EA5E9,#6366F1);
+              display:flex; align-items:center; justify-content:center; font-size:.9rem; flex-shrink:0; }}
+.placar {{ display:flex; gap:10px; margin:4px 0 12px 0; position:sticky; top:0; z-index:5; }}
+.placar > div {{ flex:1; background:#131C31; border:1px solid #1F2A44; border-radius:12px; padding:10px; text-align:center; color:#94A3B8; font-size:1rem; }}
+.placar b {{ color:white; font-size:1.6rem; font-weight:800; }}
+.placar small {{ display:block; font-size:.75rem; margin-top:2px; }}
+
+/* Botões Célula / Culto: grandes, lado a lado, fáceis de tocar */
+[data-testid="stButtonGroup"] {{ width:100%; }}
+[data-testid="stButtonGroup"] > div {{ width:100%; display:flex; gap:8px; flex-wrap:nowrap; }}
+[data-testid="stButtonGroup"] button {{
+    flex:1 1 0; min-height:52px; font-size:1.05rem !important; font-weight:700; border-radius:12px !important;
+    border:1px solid #1F2A44 !important; background:#0F172A !important; color:#94A3B8 !important;
+}}
+[data-testid="stButtonGroup"] button[kind$="Active"], [data-testid="stButtonGroup"] button[aria-checked="true"] {{
+    background:linear-gradient(135deg,#0EA5E9,#6366F1) !important; color:white !important; border-color:transparent !important;
+}}
+/* number_input maior para o dedo */
+[data-testid="stNumberInput"] input {{ font-size:1.3rem; font-weight:700; text-align:center; min-height:48px; }}
+[data-testid="stNumberInput"] button {{ min-width:44px; }}
+.stButton > button {{ min-height:46px; }}
+div.stButton > button[kind="primary"] {{ min-height:58px; font-size:1.1rem; }}
+
+@media (max-width: 640px) {{
+    .pessoa-nome {{ font-size:1.05rem; }}
+    [data-testid="stVerticalBlockBorderWrapper"] {{ padding:2px !important; }}
+}}
+
+/* ===== Tema escuro nos campos (legível mesmo sem config.toml) ===== */
+[data-testid="stWidgetLabel"] p, .stRadio label p, .stCheckbox label p, [data-testid="stCaptionContainer"] {{ color:#CBD5E1 !important; }}
+[data-baseweb="select"] > div, [data-baseweb="input"] > div, [data-baseweb="base-input"], [data-testid="stNumberInputContainer"] {{
+    background:#0F172A !important; border-color:#1F2A44 !important; color:white !important; }}
+[data-baseweb="select"] *, [data-baseweb="input"] input, [data-testid="stNumberInput"] input {{ color:white !important; background:transparent !important; }}
+[data-baseweb="select"] svg {{ fill:#94A3B8 !important; }}
+[data-testid="stNumberInput"] button {{ background:#1E293B !important; color:white !important; border:none !important; }}
+button[data-testid="stBaseButton-secondary"] {{ background:#1E293B !important; color:white !important; border:1px solid #1F2A44 !important; }}
+button[data-testid="stBaseButton-secondary"] p {{ color:white !important; }}
+[data-testid="stExpander"] details {{ background:#131C31; border-color:#1F2A44 !important; border-radius:12px; }}
+[data-testid="stExpander"] summary p {{ color:white !important; }}
+[data-baseweb="tag"] {{ background:#1E3A5F !important; }}
+
+/* Segmented (Célula / Culto) ocupando a largura toda */
+[data-testid="stElementContainer"]:has([data-testid="stButtonGroup"]) {{ width:100% !important; }}
+[data-testid="stButtonGroup"] [role="toolbar"] {{ width:100%; display:flex; gap:8px; flex-wrap:nowrap; }}
+[data-testid="stButtonGroup"] button {{ flex:1 1 0 !important; max-width:none !important; }}
+[data-testid="stButtonGroup"] button p {{ font-size:1.05rem !important; color:inherit !important; }}
+[data-testid="stButtonGroup"] button[aria-pressed="true"], [data-testid="stButtonGroup"] button[data-selected="true"] {{
+    background:linear-gradient(135deg,#0EA5E9,#6366F1) !important; color:white !important; border-color:transparent !important; }}
+
+/* Atalhos sempre lado a lado, inclusive no celular */
+.st-key-atalhos [data-testid="stHorizontalBlock"] {{ flex-wrap:nowrap !important; flex-direction:row !important; gap:8px !important; }}
+.st-key-atalhos [data-testid="stColumn"], .st-key-atalhos [data-testid="column"] {{ min-width:0 !important; width:auto !important; flex:1 1 0 !important; }}
+.st-key-atalhos button {{ min-height:40px !important; padding:0 6px !important; }}
+.st-key-atalhos button p {{ font-size:.9rem !important; }}
+
+[data-testid="stSelectbox"] [role="group"], [data-testid="stMultiSelect"] [role="group"] {{ background:#0F172A !important; border-color:#1F2A44 !important; }}
+[data-testid="stSelectbox"] input, [data-testid="stSelectbox"] [role="group"] * {{ color:white !important; }}
+[data-testid="stButtonGroup"], [data-testid="stButtonGroup"] [role="toolbar"] {{ width:100% !important; max-width:none !important; flex:1 1 auto !important; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -323,7 +384,7 @@ if tab_dash:
                     fig_bar = px.bar(pd.DataFrame(dados_comp), x="Mês", y="Valor", color="Métrica", barmode="group", text_auto=True,
                                      color_discrete_map={"Membro + FA": COR_PRIMARIA, "Visitante": COR_VIS, "Total Geral": "#64748B"})
                     fig_bar.update_traces(marker_line_width=0, textposition="outside")
-                    estilo_grafico(fig_bar, 380).update_layout(legend=dict(xanchor="center", x=0.5), bargap=0.25)
+                    estilo_grafico(fig_bar, 380).update_layout(legend=dict(xanchor="center", x=0.5, title_text=""), bargap=0.25)
                     with st.container(border=True):
                         st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -357,68 +418,85 @@ if tab_dash:
                                     st.markdown(f'<div class="alerta">{it}</div>', unsafe_allow_html=True)
 
 # =====================================================================
-# ABA LANÇAR
+# ABA LANÇAR  (pensada para o celular)
 # =====================================================================
+OPC_CEL, OPC_CUL = "🏠 Célula", "⛪ Culto"
+
 with tab_lanc:
     if not st.session_state.membros_cadastrados:
         st.info("Nenhuma célula cadastrada ainda.")
     else:
+        # ---- Passo 1: qual célula e qual sábado ----
+        st.markdown('<div class="passo"><span>1</span> Escolha a célula e o sábado</div>', unsafe_allow_html=True)
         with st.container(border=True):
-            c_m, c_d, c_c = st.columns(3)
+            l_l = st.selectbox("🏠 Sua Célula", sorted(st.session_state.membros_cadastrados.keys()))
+            c_m, c_d = st.columns(2)
             l_m = c_m.selectbox("📅 Mês", MESES_NOMES, index=datetime.now().month-1)
             datas_s = [date(2026, MESES_MAP[l_m], d) for d in range(1, 32) if (date(2026, MESES_MAP[l_m], 1) + timedelta(days=d-1)).month == MESES_MAP[l_m] and (date(2026, MESES_MAP[l_m], 1) + timedelta(days=d-1)).weekday() == 5]
             d_l = c_d.selectbox("🗓️ Sábado", datas_s, format_func=lambda x: x.strftime('%d/%m'))
-            l_l = c_c.selectbox("🏠 Sua Célula", sorted(st.session_state.membros_cadastrados.keys()))
 
         if "presencas_bt" not in st.session_state: st.session_state.presencas_bt = {}
-
         pessoas = [(l_l, "Liderança")] + list(st.session_state.membros_cadastrados.get(l_l, {}).items())
-        for nome, tipo in pessoas:
-            for pref in ("bt_cel_", "bt_cul_"):
-                if f"{pref}{nome}" not in st.session_state.presencas_bt:
-                    st.session_state.presencas_bt[f"{pref}{nome}"] = (tipo == "Liderança")
 
-        tot_cel = sum(1 for n, _ in pessoas if st.session_state.presencas_bt[f"bt_cel_{n}"])
-        tot_cul = sum(1 for n, _ in pessoas if st.session_state.presencas_bt[f"bt_cul_{n}"])
-        r1, r2, r3 = st.columns(3)
-        kpi(r1, "Pessoas na célula", len(pessoas), "#64748B")
-        kpi(r2, "Presentes na célula", f"{tot_cel}/{len(pessoas)}", COR_PRIMARIA, pct=tot_cel/len(pessoas)*100)
-        kpi(r3, "Presentes no culto", f"{tot_cul}/{len(pessoas)}", COR_FA, pct=tot_cul/len(pessoas)*100)
+        def chave_seg(nome):
+            return f"seg_{l_l}_{d_l}_{nome}"
 
-        secao("✅ Chamada", "toque para marcar presença")
+        def marcar_todos(opcoes):
+            for n, _ in pessoas:
+                st.session_state[chave_seg(n)] = list(opcoes)
 
-        def criar_linha_mobile(nome, tipo):
-            k_cel = f"bt_cel_{nome}"
-            k_cul = f"bt_cul_{nome}"
-            cor = CORES_TIPO.get(tipo, COR_PRIMARIA)
-            with st.container(border=True):
-                info, b_cel, b_cul = st.columns([3, 2, 2], vertical_alignment="center")
-                info.markdown(
-                    f'<div class="pessoa"><div class="avatar" style="background:{cor}">{iniciais(nome)}</div>'
-                    f'<div><div class="pessoa-nome">{nome}</div>'
-                    f'<span class="badge" style="background:{cor}22;color:{cor}">{tipo}</span></div></div>',
-                    unsafe_allow_html=True,
-                )
-                on_cel = st.session_state.presencas_bt[k_cel]
-                if b_cel.button("🏠 Célula ✓" if on_cel else "🏠 Célula", key=f"btn_{k_cel}",
-                                type="primary" if on_cel else "secondary", use_container_width=True):
-                    st.session_state.presencas_bt[k_cel] = not on_cel
-                    st.rerun()
-                on_cul = st.session_state.presencas_bt[k_cul]
-                if b_cul.button("⛪ Culto ✓" if on_cul else "⛪ Culto", key=f"btn_{k_cul}",
-                                type="primary" if on_cul else "secondary", use_container_width=True):
-                    st.session_state.presencas_bt[k_cul] = not on_cul
-                    st.rerun()
+        # ---- Passo 2: chamada (só esta parte recarrega ao tocar = rápido no celular) ----
+        @st.fragment
+        def chamada():
+            st.markdown('<div class="passo"><span>2</span> Marque quem esteve presente</div>', unsafe_allow_html=True)
+            placar = st.empty()
 
-        for nome, tipo in pessoas:
-            criar_linha_mobile(nome, tipo)
+            st.caption("Atalhos para marcar todo mundo de uma vez:")
+            with st.container(key="atalhos"):
+                a1, a2, a3 = st.columns(3)
+                a1.button("✅ Célula", on_click=marcar_todos, args=([OPC_CEL],), use_container_width=True)
+                a2.button("✅ Tudo", on_click=marcar_todos, args=([OPC_CEL, OPC_CUL],), use_container_width=True)
+                a3.button("↺ Limpar", on_click=marcar_todos, args=([],), use_container_width=True)
 
-        secao("✨ Visitantes")
+            for nome, tipo in pessoas:
+                cor = CORES_TIPO.get(tipo, COR_PRIMARIA)
+                k = chave_seg(nome)
+                if k not in st.session_state:
+                    st.session_state[k] = [OPC_CEL, OPC_CUL] if tipo == "Liderança" else []
+                with st.container(border=True):
+                    st.markdown(
+                        f'<div class="pessoa"><div class="avatar" style="background:{cor}">{iniciais(nome)}</div>'
+                        f'<div><div class="pessoa-nome">{nome}</div>'
+                        f'<span class="badge" style="background:{cor}22;color:{cor}">{tipo}</span></div></div>',
+                        unsafe_allow_html=True,
+                    )
+                    sel = st.segmented_control("Presença", [OPC_CEL, OPC_CUL], selection_mode="multi",
+                                               key=k, label_visibility="collapsed") or []
+                # mesmo dicionário usado pelo salvamento original
+                st.session_state.presencas_bt[f"bt_cel_{nome}"] = OPC_CEL in sel
+                st.session_state.presencas_bt[f"bt_cul_{nome}"] = OPC_CUL in sel
+
+            tot_cel = sum(1 for n, _ in pessoas if st.session_state.presencas_bt[f"bt_cel_{n}"])
+            tot_cul = sum(1 for n, _ in pessoas if st.session_state.presencas_bt[f"bt_cul_{n}"])
+            total = len(pessoas)
+            placar.markdown(
+                f'<div class="placar">'
+                f'<div><b>{tot_cel}</b>/{total}<small>🏠 Célula</small></div>'
+                f'<div><b>{tot_cul}</b>/{total}<small>⛪ Culto</small></div>'
+                f'</div>', unsafe_allow_html=True)
+
+        chamada()
+
+        # ---- Passo 3: visitantes ----
+        st.markdown('<div class="passo"><span>3</span> Visitantes</div>', unsafe_allow_html=True)
         with st.container(border=True):
             col_v1, col_v2 = st.columns(2)
-            vce = col_v1.number_input("🏠 Visitantes na Célula", 0)
-            vcu = col_v2.number_input("⛪ Visitantes no Culto", 0)
+            vce = col_v1.number_input("🏠 Na Célula", 0)
+            vcu = col_v2.number_input("⛪ No Culto", 0)
 
+        # ---- Passo 4: salvar ----
+        st.markdown('<div class="passo"><span>4</span> Confira e salve</div>', unsafe_allow_html=True)
+        st.caption(f"Célula de **{l_l}** · sábado **{d_l.strftime('%d/%m/%Y')}**")
         if st.button("💾 SALVAR LANÇAMENTO", use_container_width=True, type="primary"):
             novos = []
             novos.append({
@@ -443,6 +521,8 @@ with tab_lanc:
                 st.success("Salvo com sucesso!")
                 st.balloons()
                 st.session_state.presencas_bt = {}
+                for k in [k for k in st.session_state.keys() if str(k).startswith("seg_")]:
+                    del st.session_state[k]
                 time.sleep(1)
                 st.cache_data.clear(); st.rerun()
 
@@ -478,7 +558,7 @@ if tab_gestao:
             with st.container(border=True):
                 st.markdown("**Nova pessoa**")
                 if st.session_state.membros_cadastrados:
-                    cs = st.selectbox("Célula:", sorted(st.session_state.membros_cadastrados.keys()))
+                    cs = st.selectbox("Célula para Membro:", sorted(st.session_state.membros_cadastrados.keys()))
                     nm = st.text_input("Nome da Pessoa")
                     tm = st.radio("Tipo Inicial", ["Membro", "FA"], horizontal=True)
                     if st.button("Adicionar Pessoa", use_container_width=True):
@@ -514,7 +594,7 @@ if tab_gestao:
         secao("🗂️ Gerenciar e excluir")
         if st.session_state.membros_cadastrados:
             with st.container(border=True):
-                cel_edit = st.selectbox("Célula:", sorted(st.session_state.membros_cadastrados.keys()))
+                cel_edit = st.selectbox("Selecione para Editar/Excluir:", sorted(st.session_state.membros_cadastrados.keys()))
                 membros_da_cel = st.session_state.membros_cadastrados.get(cel_edit, {})
                 for nome, tipo in list(membros_da_cel.items()):
                     cor = CORES_TIPO.get(tipo, COR_PRIMARIA)
